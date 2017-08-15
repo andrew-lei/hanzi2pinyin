@@ -42,8 +42,6 @@ type alias Model =
 type Msg = ReadDict (Result Http.Error (Dict.Dict String (List String)))
   | NewContent String
 
-rb = node "rb"
-
 pinyinurl = "./output.json"
 
 something : Http.Request (Dict.Dict String (List String))
@@ -53,7 +51,7 @@ match hzpydict c = (String.fromChar >> flip get hzpydict >> Maybe.andThen List.h
 
 --(String.concat << List.map (String.fromChar >> flip get model.hzpydict >> Maybe.andThen List.head >> Maybe.withDefault "") << String.toList) model.inputbox
 
-toRuby hzpydict c = ruby [] [rb [] [String.fromChar c |> text], rt [] [match hzpydict c |> text]]
+toRuby hzpydict c = ruby [] [String.fromChar c |> text, rt [] [match hzpydict c |> text]]
 
 getDict = Http.send ReadDict something
 
