@@ -1,7 +1,7 @@
 -- Read all about this program in the official Elm guide:
 -- https://guide.elm-lang.org/architecture/user_input/text_fields.html
 
-import Html exposing (Html, Attribute, text, div, input)
+import Html exposing (Html, Attribute, text, div, input, ruby, rt, node)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onInput)
 import String
@@ -42,10 +42,18 @@ type alias Model =
 type Msg = ReadDict (Result Http.Error (Dict.Dict String (List String)))
   | NewContent String
 
+rb = node "rb"
+
 pinyinurl = "./output.json"
 
 something : Http.Request (Dict.Dict String (List String))
 something = Http.get pinyinurl (dict (Json.Decode.list string))
+
+match hzpydict c = (String.fromChar >> flip get hzpydict >> Maybe.andThen List.head >> Maybe.withDefault "") c
+
+--(String.concat << List.map (String.fromChar >> flip get model.hzpydict >> Maybe.andThen List.head >> Maybe.withDefault "") << String.toList) model.inputbox
+
+toRuby hzpydict c = ruby [] [rb [] [String.fromChar c |> text], rt [] [match hzpydict c |> text]]
 
 getDict = Http.send ReadDict something
 
@@ -77,17 +85,18 @@ update msg model =
     NewContent s -> ({model | inputbox = s}, Cmd.none)
 
 --testFunc = String.concat << List.map (bool2str << isChineseChar) << String.toList
-testFunc : Model -> String
-testFunc model = (String.concat << List.map (String.fromChar >> flip get model.hzpydict >> Maybe.andThen List.head >> Maybe.withDefault "") << String.toList) model.inputbox
-
+--testFunc : Model -> String
+--testFunc model = (String.concat << List.map (String.fromChar >> flip get model.hzpydict >> Maybe.andThen List.head >> Maybe.withDefault "") << String.toList) model.inputbox
+testFunc : Model -> List (Html Msg)
+testFunc model = List.map (toRuby model.hzpydict) (String.toList model.inputbox)
 
 -- VIEW
 
 view model =
   div []
-    [ input [ placeholder "", onInput NewContent, myStyle ] []
-    , div [ myStyle ] [ text (testFunc model) ]
-    ]
+    ([ input [ placeholder "", onInput NewContent, myStyle ] []
+--    , div [ myStyle ] [ text (testFunc model) ]
+    ] ++ (testFunc model))
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
