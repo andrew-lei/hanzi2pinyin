@@ -1,7 +1,7 @@
 -- Read all about this program in the official Elm guide:
 -- https://guide.elm-lang.org/architecture/user_input/text_fields.html
 
-import Html exposing (Html, Attribute, text, div, input, ruby, rt, node)
+import Html exposing (Html, Attribute, text, div, input, ruby, rt)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onInput)
 import String
@@ -10,8 +10,6 @@ import Dict exposing (member, get)
 import Json.Decode exposing (dict, string)
 import Http
 
-test = List.range (Char.toCode '\x4DF0') (Char.toCode '\x4E20') |> List.map Char.fromCode |> String.fromList
---'\x9FFF'
 isChineseChar c =
   (c >= '\x4E00' && c <= '\x9FFF') ||
   (c >= '\x3400' && c <= '\x4DBF') ||
@@ -49,8 +47,6 @@ something = Http.get pinyinurl (dict (Json.Decode.list string))
 
 match hzpydict c = (String.fromChar >> flip get hzpydict >> Maybe.andThen List.head >> Maybe.withDefault "") c
 
---(String.concat << List.map (String.fromChar >> flip get model.hzpydict >> Maybe.andThen List.head >> Maybe.withDefault "") << String.toList) model.inputbox
-
 toRuby hzpydict c = ruby [] [String.fromChar c |> text, rt [] [match hzpydict c |> text]]
 
 getDict = Http.send ReadDict something
@@ -60,9 +56,6 @@ init =
   ( Model (Dict.empty) ""
   , getDict
   )
-
-bool2char b = if b then '1' else '0'
-bool2str b = if b then "1 " else "0 "
 
 main = Html.program
   { init = init
@@ -82,9 +75,6 @@ update msg model =
 
     NewContent s -> ({model | inputbox = s}, Cmd.none)
 
---testFunc = String.concat << List.map (bool2str << isChineseChar) << String.toList
---testFunc : Model -> String
---testFunc model = (String.concat << List.map (String.fromChar >> flip get model.hzpydict >> Maybe.andThen List.head >> Maybe.withDefault "") << String.toList) model.inputbox
 testFunc : Model -> List (Html Msg)
 testFunc model = List.map (toRuby model.hzpydict) (String.toList model.inputbox)
 
@@ -92,9 +82,9 @@ testFunc model = List.map (toRuby model.hzpydict) (String.toList model.inputbox)
 
 view model =
   div []
-    ([ input [ placeholder "", onInput NewContent, myStyle ] []
---    , div [ myStyle ] [ text (testFunc model) ]
-    ] ++ (testFunc model))
+    [ input [ placeholder "", onInput NewContent, myStyle ] []
+    , testFunc model |> div [myStyle]
+    ]
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
