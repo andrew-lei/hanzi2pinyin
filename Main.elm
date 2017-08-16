@@ -35,13 +35,11 @@ CJK Compatibility Ideographs Supplement 2F800-2FA1F Unifiable variants
 
 type alias Model =
   { hzpydict : Dict.Dict String (List String)
-  , inputbox : String
   , processedInfo : Array (String, Int, Int)
   }
 
 type Msg = ReadDict (Result Http.Error (Dict.Dict String (List String)))
   | NewContent String
-  | Reprocess
   | Switch Int
 
 pinyinurl = "./output.json"
@@ -53,13 +51,12 @@ nth n xs = List.head (List.drop n xs)
 
 match hzpydict i = flip get hzpydict >> Maybe.andThen (nth i) >> Maybe.withDefault ""
 
-toRuby hzpydict n (c,i,l) = button [Switch n |> onClick] [ruby [] [c |> text, rt [] [match hzpydict i c |> text]], ruby [] [toString i |> text, rt [] [toString l |> text]]]
---onClick (Switch n)
+toRuby hzpydict n (c,i,l) = button [Switch n |> onClick] [ruby [] [c |> text, rt [] [match hzpydict i c |> text]], ruby [] [i+1 |> toString |> text, rt [] [toString l |> text]]]
 getDict = Http.send ReadDict something
 
 init : (Model, Cmd Msg)
 init =
-  ( Model Dict.empty "" Array.empty
+  ( Model Dict.empty Array.empty
   , getDict
   )
 
@@ -70,7 +67,7 @@ main = Html.program
   , subscriptions = subscriptions
   }
 
-numAlts hzpydict = flip get hzpydict >> Maybe.map List.length >> Maybe.withDefault 0
+numAlts hzpydict = flip get hzpydict >> Maybe.map List.length >> Maybe.withDefault 1
 construct hzpydict x = (x, 0, numAlts hzpydict x)
 modify (c,i,l) = (c,(i+1)%l,l)
 
@@ -88,9 +85,7 @@ update msg model =
 
     ReadDict (Err _) -> (model, Cmd.none)
 
-    NewContent s -> {model | inputbox = s} |> update Reprocess
-
-    Reprocess -> ({model | processedInfo = String.toList model.inputbox |> Array.fromList |> Array.map (String.fromChar >> construct model.hzpydict)}, Cmd.none)
+    NewContent s -> ({model | processedInfo = String.toList s |> Array.fromList |> Array.map (String.fromChar >> construct model.hzpydict)}, Cmd.none)
 
     Switch n -> ({model | processedInfo = updateArr n model.processedInfo}, Cmd.none)
 
