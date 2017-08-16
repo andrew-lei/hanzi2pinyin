@@ -1,14 +1,15 @@
 -- Read all about this program in the official Elm guide:
 -- https://guide.elm-lang.org/architecture/user_input/text_fields.html
 
-import Html exposing (Html, Attribute, text, div, input, ruby, rt)
+import Html exposing (Html, Attribute, text, div, input, ruby, rt, button)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onInput)
+import Html.Events exposing (onInput, onClick)
 import String
 import Char
 import Dict exposing (member, get)
 import Json.Decode exposing (dict, string)
 import Http
+import Array exposing (Array)
 
 isChineseChar c =
   (c >= '\x4E00' && c <= '\x9FFF') ||
@@ -35,25 +36,30 @@ CJK Compatibility Ideographs Supplement 2F800-2FA1F Unifiable variants
 type alias Model =
   { hzpydict : Dict.Dict String (List String)
   , inputbox : String
+  , processedInfo : Array (String, Int, Int)
   }
 
 type Msg = ReadDict (Result Http.Error (Dict.Dict String (List String)))
   | NewContent String
+  | Reprocess
+  | Switch Int
 
 pinyinurl = "./output.json"
 
 something : Http.Request (Dict.Dict String (List String))
 something = Http.get pinyinurl (dict (Json.Decode.list string))
 
-match hzpydict c = (String.fromChar >> flip get hzpydict >> Maybe.andThen List.head >> Maybe.withDefault "") c
+nth n xs = List.head (List.drop n xs)
 
-toRuby hzpydict c = ruby [] [String.fromChar c |> text, rt [] [match hzpydict c |> text]]
+match hzpydict i = flip get hzpydict >> Maybe.andThen (nth i) >> Maybe.withDefault ""
 
+toRuby hzpydict n (c,i,l) = button [Switch n |> onClick] [ruby [] [c |> text, rt [] [match hzpydict i c |> text]], ruby [] [toString i |> text, rt [] [toString l |> text]]]
+--onClick (Switch n)
 getDict = Http.send ReadDict something
 
 init : (Model, Cmd Msg)
 init =
-  ( Model (Dict.empty) ""
+  ( Model Dict.empty "" Array.empty
   , getDict
   )
 
@@ -64,6 +70,15 @@ main = Html.program
   , subscriptions = subscriptions
   }
 
+numAlts hzpydict = flip get hzpydict >> Maybe.map List.length >> Maybe.withDefault 0
+construct hzpydict x = (x, 0, numAlts hzpydict x)
+modify (c,i,l) = (c,(i+1)%l,l)
+
+updateArr n arr =
+  case (Array.get n arr) of
+    Nothing -> arr
+
+    Just el -> Array.set n (modify el) arr
 
 -- UPDATE
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -73,10 +88,14 @@ update msg model =
 
     ReadDict (Err _) -> (model, Cmd.none)
 
-    NewContent s -> ({model | inputbox = s}, Cmd.none)
+    NewContent s -> {model | inputbox = s} |> update Reprocess
+
+    Reprocess -> ({model | processedInfo = String.toList model.inputbox |> Array.fromList |> Array.map (String.fromChar >> construct model.hzpydict)}, Cmd.none)
+
+    Switch n -> ({model | processedInfo = updateArr n model.processedInfo}, Cmd.none)
 
 testFunc : Model -> List (Html Msg)
-testFunc model = List.map (toRuby model.hzpydict) (String.toList model.inputbox)
+testFunc model = Array.indexedMap (toRuby model.hzpydict) model.processedInfo |> Array.toList
 
 -- VIEW
 
